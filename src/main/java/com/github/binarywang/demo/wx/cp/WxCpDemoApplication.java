@@ -2,6 +2,7 @@ package com.github.binarywang.demo.wx.cp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * 在配置目录下，分为single和mutil目录，代表单实例和多实例方式，请自行选择配置方式
@@ -9,6 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author <a href="https://github.com/binarywang">Binary Wang</a>
  */
 @SpringBootApplication
+@EnableConfigurationProperties
 public class WxCpDemoApplication {
 
   public static void main(String[] args) {

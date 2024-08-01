@@ -23,17 +23,17 @@ public class RedissonConfig {
     @Value("${spring.redis.port}")
     private String port;
 
-    @Value("${spring.redis.password}")
-    private String password;
+//    @Value("${spring.redis.password}")
+//    private String password;
 
     @Bean(value = "redissonClient", destroyMethod = "shutdown")
     public RedissonClient redissonClient() throws Exception{
 
         Config config = new Config();
         config.useSingleServer().setAddress(String.format("redis://%s:%s", this.host, this.port));
-        if (!this.password.isEmpty()) {
-            config.useSingleServer().setPassword(this.password);
-        }
+//        if (!this.password.isEmpty()) {
+//            config.useSingleServer().setPassword(this.password);
+//        }
         config.useSingleServer().setDatabase(this.database);
 
         StringCodec codec = new StringCodec();
