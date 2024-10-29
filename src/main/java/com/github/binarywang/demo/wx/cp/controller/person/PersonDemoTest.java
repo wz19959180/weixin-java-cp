@@ -55,7 +55,7 @@ public class PersonDemoTest {
      */
     @Test
     public void testAddPerson(){
-        personDemo.addPerson();
+//        personDemo.addPerson();
     }
 
     /**

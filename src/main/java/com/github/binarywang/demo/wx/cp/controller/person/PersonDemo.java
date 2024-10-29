@@ -6,13 +6,20 @@ import com.dahuatech.icc.exception.ClientException;
 import com.dahuatech.icc.oauth.model.v202010.GeneralResponse;
 import com.dahuatech.icc.oauth.model.v202010.OauthConfigUserPwdInfo;
 import com.dahuatech.icc.oauth.utils.HttpUtils;
+import com.github.binarywang.demo.wx.cp.mapper.PersonMapper;
+import com.github.binarywang.demo.wx.cp.model.Person;
+import com.github.binarywang.demo.wx.cp.model.WechatUserInfo;
 import com.github.binarywang.demo.wx.cp.model.brm.person.*;
 import com.github.binarywang.demo.wx.cp.model.event.eventSubcribe.SubscribeRequest;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.io.File;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +33,7 @@ import java.util.Map;
  */
 @Slf4j
 @Data
+@Service
 public class PersonDemo {
     private  String host = "124.160.33.135";
     private  String port = "4077";
@@ -34,6 +42,9 @@ public class PersonDemo {
     private  String clientId = "CompanyName";
     private  String clientSecret = "42bec152-8f04-476a-9aec-e7d616ff3cb3";
     private  boolean isHttp = false;
+
+    @Autowired
+    private PersonMapper personMapper;
 
     /**
      * 获取人员id
@@ -86,40 +97,28 @@ public class PersonDemo {
         return fileUrl;
     }
 
-    /**
-     * 获取RSA加密公钥
-     * @return
-     */
-    public GetPublicKeyResponse getPublicKey(){
-        OauthConfigUserPwdInfo config = new OauthConfigUserPwdInfo(host, clientId, clientSecret, username, password, isHttp, port);
-        GetPublicKeyResponse response=null;
-        try {
-            response = HttpUtils.executeJson("/evo-apigw/evo-brm/1.2.0/encrypt/public-key", null,null, Method.GET , config, GetPublicKeyResponse.class);
-            log.info("PersonDemo,getPublicKey,response:{}", JSONUtil.toJsonStr(response));
-        } catch (ClientException e) {
-            log.error(e.getErrMsg(), e);
-        }
-        if(!response.isSuccess()) {
-            log.info("获取RSA加密公钥失败:{}",response.getErrMsg());
-        }
-        return response;
-    }
 
     /**
-     * 添加人员
-     * @return 人员id
+     * 更新员信息
+     * @return fileUrl 图片url
+     * @throws ClientException
      */
-    public Long addPerson(){
+    public String updatePerson(WechatUserInfo userInfo){
         PersonAddRequest personAddRequest=new PersonAddRequest();
-        personAddRequest.setId(generatePersonId());
-        personAddRequest.setName("wztest");
-        personAddRequest.setCode("ADD123456");
+        personAddRequest.setId(Long.valueOf(userInfo.getUserid()));
+        personAddRequest.setName(userInfo.getName());
+        personAddRequest.setCode(userInfo.getUserid());
         personAddRequest.setPaperType(111);
-        personAddRequest.setPaperNumber("34112519950818385X");
-        personAddRequest.setPaperAddress("安徽省滁州市");
-        personAddRequest.setDepartmentId(1l);
-        personAddRequest.setValidStartTime("2024-06-19 00:00:00");
-        personAddRequest.setValidEndTime("2025-06-19 23:59:59");
+        personAddRequest.setPhone(userInfo.getTelephone());
+        personAddRequest.setPaperNumber(userInfo.getExtattr().getAttrs().get(0).getValue());
+        personAddRequest.setPaperAddress(userInfo.getPosition());
+        personAddRequest.setDepartmentId(Long.valueOf(userInfo.getDepartment().get(0)));
+//
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+//        LocalDateTime now = LocalDateTime.now();
+//        personAddRequest.setValidStartTime(now.format(formatter));
+//        LocalDateTime threeYearsLater = now.plusYears(3);
+//        personAddRequest.setValidEndTime(threeYearsLater.format(formatter));
         //获取RSA加密公钥
         GetPublicKeyResponse getPublicKeyResponse = getPublicKey();
         log.info("publicKey:{}",getPublicKeyResponse.getData().getPublicKey());
@@ -155,6 +154,97 @@ public class PersonDemo {
         PersonAddResponse response=null;
         try {
             log.info("PersonDemo,addPerson,request:{}", JSONUtil.toJsonStr(personAddRequest));
+            response = HttpUtils.executeJson("/evo-apigw/evo-brm/1.2.0/person/subsystem/update", personAddRequest,null, Method.POST , config, PersonAddResponse.class);
+            log.info("PersonDemo,addPerson,response:{}", JSONUtil.toJsonStr(response));
+        } catch (ClientException e) {
+            log.error(e.getErrMsg(), e);
+        }
+        if(!response.isSuccess()) {
+            log.info("人员更新失败:{}",response.getErrMsg());
+        }
+        return null;
+    }
+
+    /**
+     * 获取RSA加密公钥
+     * @return
+     */
+    public GetPublicKeyResponse getPublicKey(){
+        OauthConfigUserPwdInfo config = new OauthConfigUserPwdInfo(host, clientId, clientSecret, username, password, isHttp, port);
+        GetPublicKeyResponse response=null;
+        try {
+            response = HttpUtils.executeJson("/evo-apigw/evo-brm/1.2.0/encrypt/public-key", null,null, Method.GET , config, GetPublicKeyResponse.class);
+            log.info("PersonDemo,getPublicKey,response:{}", JSONUtil.toJsonStr(response));
+        } catch (ClientException e) {
+            log.error(e.getErrMsg(), e);
+        }
+        if(!response.isSuccess()) {
+            log.info("获取RSA加密公钥失败:{}",response.getErrMsg());
+        }
+        return response;
+    }
+
+    /**
+     * 添加人员
+     * @return 人员id
+     */
+    public Long addPerson(WechatUserInfo userInfo){
+        log.info("待添加的人员信息:"+userInfo);
+        PersonAddRequest personAddRequest=new PersonAddRequest();
+        Long gen = generatePersonId();
+        personAddRequest.setId(gen);
+        personAddRequest.setName(userInfo.getName());
+        personAddRequest.setCode(userInfo.getUserid());
+//        personAddRequest.setPaperType(111);
+        personAddRequest.setPhone(userInfo.getTelephone());
+        if (null!=userInfo.getExtattr().getAttrs()&&userInfo.getExtattr().getAttrs().size()>0){
+//            personAddRequest.setPaperNumber(userInfo.getExtattr().getAttrs().get(1).getValue());
+        }
+        personAddRequest.setPaperAddress(userInfo.getPosition());
+        personAddRequest.setDepartmentId(Long.valueOf(userInfo.getDepartment().get(0)));
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime now = LocalDateTime.now();
+        personAddRequest.setValidStartTime(now.format(formatter));
+        LocalDateTime threeYearsLater = now.plusYears(3);
+        personAddRequest.setValidEndTime(threeYearsLater.format(formatter));
+
+        //获取RSA加密公钥
+        GetPublicKeyResponse getPublicKeyResponse = getPublicKey();
+        log.info("publicKey:{}",getPublicKeyResponse.getData().getPublicKey());
+        log.info("key:{}",getPublicKeyResponse.getData().getKey());
+//        personAddRequest.setPasswordKey(getPublicKeyResponse.getData().getKey());
+//        //人员明文密码
+//        String password="196545";
+//        try {
+//            personAddRequest.setPassword(RSAUtil.encrypt(password,getPublicKeyResponse.getData().getPublicKey()));
+//        } catch (Exception e) {
+//            log.error(e.getMessage(),e);
+//        }
+
+        //设置生物特征数据（人像头像、人像特征、指纹特征）
+//        List<PersonAddRequest.PersonBioSignature> personBioSignatures = new ArrayList<>();
+//        PersonAddRequest.PersonBioSignature personBioSignature = new PersonAddRequest.PersonBioSignature();
+//        personBioSignature.setType(3);
+//        personBioSignature.setIndex(1);
+////        personBioSignature.setPath(uploadImage("D:"+ File.separator+"image.jpg"));
+//        personBioSignatures.add(personBioSignature);
+//        personAddRequest.setPersonBiosignatures(personBioSignatures);
+//
+//        //设置自定义字段
+//        PersonAddRequest.FieldExt fieldExt = new PersonAddRequest.FieldExt();
+//        fieldExt.setBusinessType("4");
+//        Map<String,String> useFieldNames = new HashMap<>();
+//        useFieldNames.put("gse87icogrnlqy3utchz","244031");
+//        fieldExt.setUseFieldNames(useFieldNames);
+//        personAddRequest.setFieldExt(fieldExt);
+
+        log.info("待添加人员:"+personAddRequest);
+        Long id=null;
+        OauthConfigUserPwdInfo config = new OauthConfigUserPwdInfo(host, clientId, clientSecret, username, password, isHttp, port);
+        PersonAddResponse response=null;
+        try {
+            log.info("PersonDemo,addPerson,request:{}", JSONUtil.toJsonStr(personAddRequest));
             response = HttpUtils.executeJson("/evo-apigw/evo-brm/1.2.0/person/subsystem/add", personAddRequest,null, Method.POST , config, PersonAddResponse.class);
             log.info("PersonDemo,addPerson,response:{}", JSONUtil.toJsonStr(response));
         } catch (ClientException e) {
@@ -162,6 +252,14 @@ public class PersonDemo {
         }
         if(!response.isSuccess()) {
             log.info("人员添加失败:{}",response.getErrMsg());
+        }else {
+            //数据库记录
+            Person person = new Person();
+            person.setWxId(userInfo.getUserid());
+            person.setId(gen);
+            person.setName(userInfo.getName());
+            person.setCode(userInfo.getUserid());
+            personMapper.insert(person);
         }
         return id;
     }

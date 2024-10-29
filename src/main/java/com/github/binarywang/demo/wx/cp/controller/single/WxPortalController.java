@@ -1,6 +1,10 @@
 package com.github.binarywang.demo.wx.cp.controller.single;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.binarywang.demo.wx.cp.config.single.WxCpConfiguration;
+import com.github.binarywang.demo.wx.cp.model.WeChatEvent;
+import com.github.binarywang.demo.wx.cp.service.WeChatService;
 import com.github.binarywang.demo.wx.cp.utils.JsonUtils;
 import com.qq.weixin.mp.aes.AesException;
 import com.qq.weixin.mp.aes.WXBizJsonMsgCrypt;
@@ -9,6 +13,7 @@ import me.chanjar.weixin.cp.api.WxCpService;
 import me.chanjar.weixin.cp.bean.message.WxCpXmlMessage;
 import me.chanjar.weixin.cp.bean.message.WxCpXmlOutMessage;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +37,8 @@ public class WxPortalController {
     @Value("48LSq2qjDYhB5ySWswtUB0QCiUJtPPPYOpxa2K2mAv8")
     private String aes;
 
+    @Autowired
+    WeChatService weChatService;
     //    @GetMapping("/verify")
     @GetMapping(produces = "text/plain;charset=utf-8")
     public String authGet(@PathVariable Integer agentId,
@@ -70,7 +77,7 @@ public class WxPortalController {
                        @RequestBody String requestBody,
                        @RequestParam("msg_signature") String signature,
                        @RequestParam("timestamp") String timestamp,
-                       @RequestParam("nonce") String nonce) {
+                       @RequestParam("nonce") String nonce) throws JsonProcessingException {
         log.info("\n接收微信请求：[signature=[{}], timestamp=[{}], nonce=[{}], requestBody=[\n{}\n] ",
             signature, timestamp, nonce, requestBody);
 
@@ -78,6 +85,13 @@ public class WxPortalController {
         WxCpXmlMessage inMessage = WxCpXmlMessage.fromEncryptedXml(requestBody, wxCpService.getWxCpConfigStorage(),
             timestamp, nonce, signature);
         log.debug("\n消息解密后内容为：\n{} ", JsonUtils.toJson(inMessage));
+        String jsonString = JsonUtils.toJson(inMessage);
+
+        //处理解密后的消息串
+        ObjectMapper objectMapper = new ObjectMapper();
+        WeChatEvent weChatEvent = objectMapper.readValue(jsonString, WeChatEvent.class);
+        weChatService.judgeEvent(weChatEvent);
+
         WxCpXmlOutMessage outMessage = this.route(agentId, inMessage);
         if (outMessage == null) {
             return "";
